@@ -1,0 +1,6 @@
+{
+    "name": "py-backend",
+    "scripts": {
+        "dev": "./run.sh"
+    }
+}

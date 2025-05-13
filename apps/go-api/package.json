@@ -1,0 +1,6 @@
+{
+    "name": "go-api",
+    "scripts": {
+        "dev": "./run.sh"
+    }
+}
