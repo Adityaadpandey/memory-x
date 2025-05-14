@@ -38,7 +38,7 @@ func Post() http.HandlerFunc {
 			log.Printf("Error creating user: %v", err)
 			response.WriteJson(w, http.StatusInternalServerError, response.Response{
 				Status: response.Error,
-				Error:  "Failed to create user",
+				Error:  err.Error(),
 			})
 			return
 		}
