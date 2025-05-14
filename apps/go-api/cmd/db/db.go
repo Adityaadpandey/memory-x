@@ -43,26 +43,16 @@ func run() error {
   fmt.Printf("created post: %s\n", result)
 
   // find a single post
-  post, err := client.Post.FindUnique(
-    db.Post.ID.Equals(createdPost.ID),
-  ).Exec(ctx)
+  post, err := client.Post.FindMany().Exec(ctx)
   if err != nil {
     return err
   }
 
   result, _ = json.MarshalIndent(post, "", "  ")
-  fmt.Printf("post: %s\n", result)
-
-  // for optional/nullable values, you need to check the function and create two return values
-  // `desc` is a string, and `ok` is a bool whether the record is null or not. If it's null,
-  // `ok` is false, and `desc` will default to Go's default values; in this case an empty string (""). Otherwise,
-  // `ok` is true and `desc` will be "my description".
-  desc, ok := post.Desc()
-  if !ok {
-    return fmt.Errorf("post's description is null")
+  if result == nil {
+    fmt.Println("No posts found")
+    return nil
   }
-
-  fmt.Printf("The posts's description is: %s\n", desc)
-
+  fmt.Printf("post: %s\n", result)
   return nil
 }
