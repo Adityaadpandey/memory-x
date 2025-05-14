@@ -1,68 +1,76 @@
 package main
 
 import (
-  "context"
-  "encoding/json"
-  "fmt"
+	"context"
+	"fmt"
+	"log"
+	"net/http"
 
-  // adapt "demo" to your module name if it differs
+	"github.com/adityaadpandey/memory-x/go-api/internal/config"
+	"github.com/adityaadpandey/memory-x/go-api/internal/dbclient"
 	"github.com/adityaadpandey/memory-x/go-api/prisma/db"
 )
 
 func main() {
-  if err := run(); err != nil {
-    panic(err)
-  }
-}
+	cfg := config.MustLoad()
 
-func run() error {
-  client := db.NewClient()
-  if err := client.Prisma.Connect(); err != nil {
-    return err
-  }
+	// Initialize Prisma client
+	if err := dbclient.InitClient(); err != nil {
+		log.Fatal("Error initializing Prisma client:", err)
+	}
+	defer dbclient.Disconnect()
 
-  defer func() {
-    if err := client.Prisma.Disconnect(); err != nil {
-      panic(err)
-    }
-  }()
+	// Create a new HTTP router
+	router := http.NewServeMux()
+	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		// Access the Prisma client via dbclient.PrismaClient
+		users, err := dbclient.PrismaClient.User.FindMany().Exec(context.Background())
+		if err != nil {
+			log.Fatal("Error fetching users:", err)
+		}
 
-  ctx := context.Background()
+		// Print the fetched users (or handle them as needed)
+		fmt.Println(users)
 
-  // create a post
-  createdPost, err := client.Post.CreateOne(
-    db.Post.Title.Set("Hi from Prisma!"),
-    db.Post.Published.Set(true),
-    db.Post.Desc.Set("Prisma is a database toolkit and makes databases easy."),
-  ).Exec(ctx)
-  if err != nil {
-    return err
-  }
+		// Send a simple response
+		w.Write([]byte("Hello, World!"))
+	})
 
-  result, _ := json.MarshalIndent(createdPost, "", "  ")
-  fmt.Printf("created post: %s\n", result)
+	router.HandleFunc("GET /test", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		// create a new user
+		user, err := dbclient.PrismaClient.User.CreateOne(
+			db.User.Name.Set("Test User"),
+			db.User.Email.Set("x@gmail.com"),
+			db.User.Password.Set("password"),
+		).Exec(context.Background())
 
-  // find a single post
-  post, err := client.Post.FindUnique(
-    db.Post.ID.Equals(createdPost.ID),
-  ).Exec(ctx)
-  if err != nil {
-    return err
-  }
+		if err != nil {
+			return
+		}
+		// Print the created user (or handle it as needed)
+		fmt.Println(user)
+		// Send a simple response
+		w.Write([]byte("User created successfully!"))
+	})
 
-  result, _ = json.MarshalIndent(post, "", "  ")
-  fmt.Printf("post: %s\n", result)
+	// Set up the server
+	server := http.Server{
+		Addr:    cfg.Addr,
+		Handler: router,
+	}
 
-  // for optional/nullable values, you need to check the function and create two return values
-  // `desc` is a string, and `ok` is a bool whether the record is null or not. If it's null,
-  // `ok` is false, and `desc` will default to Go's default values; in this case an empty string (""). Otherwise,
-  // `ok` is true and `desc` will be "my description".
-  desc, ok := post.Desc()
-  if !ok {
-    return fmt.Errorf("post's description is null")
-  }
-
-  fmt.Printf("The posts's description is: %s\n", desc)
-
-  return nil
+	// Start the server
+	fmt.Println("Server starting on", cfg.Addr)
+	err := server.ListenAndServe()
+	if err != nil {
+		log.Fatalf("Failed to start server: %v", err)
+	}
 }
