@@ -13,8 +13,8 @@ model User {
     name       String
     email      String      @unique
     password   String?
-    workspaces Workspace[]
-    story      Story[]
+    workspaces Workspace[] @relation("UserWorkspaces")
+    stories    Story[]
     createdAt  DateTime    @default(now())
     updatedAt  DateTime    @updatedAt
 }
@@ -23,47 +23,53 @@ model Workspace {
     id          String   @id @default(uuid())
     name        String
     description String?
-    users       User[]
+    users       User[]   @relation("UserWorkspaces")
     caption     String?
-    images      Image[]
+    images      Image[]  @relation("WorkspaceImages")
     stories     Story[]
     createdAt   DateTime @default(now())
     updatedAt   DateTime @updatedAt
 }
 
 model Image {
-    id          String     @id @default(uuid())
+    id          String  @id @default(uuid())
     url         String
     storyId     String?
-    createdAt   DateTime   @default(now())
-    updatedAt   DateTime   @updatedAt
-    Story       Story?     @relation(fields: [storyId], references: [id])
-    Workspace   Workspace? @relation(fields: [workspaceId], references: [id])
     workspaceId String?
-    Caption     Caption[]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    Story     Story?     @relation("StoryImages", fields: [storyId], references: [id], onDelete: SetNull)
+    Workspace Workspace? @relation("WorkspaceImages", fields: [workspaceId], references: [id], onDelete: SetNull)
+    captions  Caption[]
 }
 
 model Caption {
-    id        String   @id @default(uuid())
-    text      String
-    imageId   String
+    id      String @id @default(uuid())
+    text    String
+    imageId String
+
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
-    Image     Image    @relation(fields: [imageId], references: [id])
+
+    Image Image @relation(fields: [imageId], references: [id], onDelete: Cascade)
 }
 
 model Story {
-    id          String    @id @default(uuid())
+    id          String  @id @default(uuid())
     title       String
     description String?
     workspaceId String
     userId      String
     caption     String?
-    images      Image[]
-    createdAt   DateTime  @default(now())
-    updatedAt   DateTime  @updatedAt
-    User        User      @relation(fields: [userId], references: [id])
-    Workspace   Workspace @relation(fields: [workspaceId], references: [id])
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    images    Image[]   @relation("StoryImages")
+    User      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+    Workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
     @@index([workspaceId])
     @@index([userId])

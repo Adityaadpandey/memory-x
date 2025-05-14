@@ -8,7 +8,7 @@ import (
 
 	"github.com/adityaadpandey/memory-x/go-api/internal/config"
 	"github.com/adityaadpandey/memory-x/go-api/internal/dbclient"
-	"github.com/adityaadpandey/memory-x/go-api/prisma/db"
+	users "github.com/adityaadpandey/memory-x/go-api/internal/handlers"
 )
 
 func main() {
@@ -40,26 +40,8 @@ func main() {
 		w.Write([]byte("Hello, World!"))
 	})
 
-	router.HandleFunc("GET /test", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		// create a new user
-		user, err := dbclient.PrismaClient.User.CreateOne(
-			db.User.Name.Set("Test User"),
-			db.User.Email.Set("x@gmail.com"),
-			db.User.Password.Set("password"),
-		).Exec(context.Background())
-
-		if err != nil {
-			return
-		}
-		// Print the created user (or handle it as needed)
-		fmt.Println(user)
-		// Send a simple response
-		w.Write([]byte("User created successfully!"))
-	})
+	router.HandleFunc("POST /test", users.Post())
+	router.HandleFunc("GET /test", users.Get())
 
 	// Set up the server
 	server := http.Server{
