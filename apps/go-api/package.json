@@ -2,6 +2,7 @@
     "name": "go-api",
     "scripts": {
         "dev": "./run.sh",
-        "db:push": "go run github.com/steebchen/prisma-client-go db push"
+        "db:push": "go run github.com/steebchen/prisma-client-go db push",
+        "start":"go build cmd/main/main.go && ./main -config config/local.yaml"
     }
 }
