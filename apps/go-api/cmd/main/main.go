@@ -40,8 +40,9 @@ func main() {
 		w.Write([]byte("Hello, World!"))
 	})
 
-	router.HandleFunc("POST /test", users.Post())
-	router.HandleFunc("GET /test", users.Get())
+	router.HandleFunc("POST /api/v1/auth/register", users.Register())
+	router.HandleFunc("POST /api/v1/auth/login", users.Login())
+	router.HandleFunc("GET /api/v1/auth/verify", users.Verify())
 
 	// Set up the server
 	server := http.Server{

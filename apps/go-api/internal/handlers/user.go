@@ -2,7 +2,6 @@ package users
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 
@@ -11,10 +10,9 @@ import (
 	"github.com/adityaadpandey/memory-x/go-api/internal/utils/jwttoken"
 	response "github.com/adityaadpandey/memory-x/go-api/internal/utils/response"
 	"github.com/adityaadpandey/memory-x/go-api/prisma/db"
-	"github.com/golang-jwt/jwt/v5"
 )
 
-func Post() http.HandlerFunc {
+func Register() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var user types.User
 
@@ -27,12 +25,20 @@ func Post() http.HandlerFunc {
 			})
 			return
 		}
-
+		//  hashing the pass
+		encyPass, err := jwttoken.HashPassword(user.Password)
+		if err != nil {
+			response.WriteJson(w, http.StatusInternalServerError, response.Response{
+				Status: response.Error,
+				Error:  "Failed to hash password",
+			})
+			return
+		}
 		// Create the user in the DB and capture the result
 		createdUser, err := dbclient.PrismaClient.User.CreateOne(
 			db.User.Name.Set(user.Name),
 			db.User.Email.Set(user.Email),
-			db.User.Password.Set(user.Password),
+			db.User.Password.Set(encyPass),
 		).Exec(r.Context())
 		if err != nil {
 			log.Printf("Error creating user: %v", err)
@@ -62,9 +68,64 @@ func Post() http.HandlerFunc {
 	}
 }
 
-func Get() http.HandlerFunc {
+func Login() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Step 1: Get the token from the Authorization header
+		var user types.User
+
+		// Decode incoming JSON
+		err := json.NewDecoder(r.Body).Decode(&user)
+		if err != nil {
+			response.WriteJson(w, http.StatusBadRequest, response.Response{
+				Status: response.Error,
+				Error:  "Invalid request payload",
+			})
+			return
+		}
+
+		// Find the user in the DB
+		foundUser, err := dbclient.PrismaClient.User.FindUnique(
+			db.User.Email.Equals(user.Email),
+		).Exec(r.Context())
+		if err != nil {
+			response.WriteJson(w, http.StatusUnauthorized, response.Response{
+				Status: response.Error,
+				Error:  "Invalid email or password",
+			})
+			return
+		}
+
+		// Verify the password
+		password, _ := foundUser.Password()
+		err = jwttoken.ComparePasswords(password, user.Password)
+		if err != nil {
+			response.WriteJson(w, http.StatusUnauthorized, response.Response{
+				Status: response.Error,
+				Error:  "Invalid email or password",
+			})
+			return
+		}
+
+		key, err := jwttoken.CreateToken(foundUser.ID, foundUser.Name)
+		if err != nil {
+			response.WriteJson(w, http.StatusInternalServerError, response.Response{
+				Status: response.Error,
+				Error:  "Failed to create token",
+			})
+			return
+		}
+
+		response.WriteJson(w, http.StatusOK, response.Response{
+			Status:  response.Success,
+			Error:   "",
+			Message: key,
+		})
+	}
+}
+
+func Verify() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		// just taking the token from the header
 		tokenString := r.Header.Get("Authorization")
 		if tokenString == "" {
 			response.WriteJson(w, http.StatusUnauthorized, response.Response{
@@ -74,14 +135,10 @@ func Get() http.HandlerFunc {
 			return
 		}
 
-		// Remove "Bearer " prefix
 		tokenString = tokenString[len("Bearer "):]
-
-		// Step 2: Parse the token and verify it
-		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			return jwttoken.SecretKey, nil
-		})
-		if err != nil || !token.Valid {
+		//  veification of teken
+		userID, err := jwttoken.VerifyToken(tokenString)
+		if err != nil {
 			response.WriteJson(w, http.StatusUnauthorized, response.Response{
 				Status: response.Error,
 				Error:  "Invalid token",
@@ -89,23 +146,9 @@ func Get() http.HandlerFunc {
 			return
 		}
 
-		// Step 3: Get claims (user ID, username)
-		claims, ok := token.Claims.(jwt.MapClaims)
-		if !ok || claims["id"] == nil {
-			response.WriteJson(w, http.StatusUnauthorized, response.Response{
-				Status: response.Error,
-				Error:  "Invalid token claims",
-			})
-			return
-		}
-		fmt.Println(claims)
-
-		// Step 4: Fetch the user by ID from the DB
-		userID := claims["id"].(string)
 		user, err := dbclient.PrismaClient.User.FindUnique(
 			db.User.ID.Equals(userID),
 		).Exec(r.Context())
-		fmt.Printf("User: %v\n", user)
 		if err != nil {
 			response.WriteJson(w, http.StatusInternalServerError, response.Response{
 				Status: response.Error,
@@ -113,8 +156,7 @@ func Get() http.HandlerFunc {
 			})
 			return
 		}
-
-		// Step 5: Return the user's data
+		// Return the user's data
 		response.WriteJson(w, http.StatusOK, user)
 	}
 }
