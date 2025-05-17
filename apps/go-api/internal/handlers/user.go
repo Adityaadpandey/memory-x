@@ -89,7 +89,7 @@ func Login() http.HandlerFunc {
 		if err != nil {
 			response.WriteJson(w, http.StatusUnauthorized, response.Response{
 				Status: response.Error,
-				Error:  "Invalid email or password",
+				Error:  "Invalid email",
 			})
 			return
 		}
@@ -100,7 +100,7 @@ func Login() http.HandlerFunc {
 		if err != nil {
 			response.WriteJson(w, http.StatusUnauthorized, response.Response{
 				Status: response.Error,
-				Error:  "Invalid email or password",
+				Error:  "Invalid password",
 			})
 			return
 		}
@@ -117,7 +117,7 @@ func Login() http.HandlerFunc {
 		response.WriteJson(w, http.StatusOK, response.Response{
 			Status:  response.Success,
 			Error:   "",
-			Message: key,
+			Message: map[string]string{"token": key},
 		})
 	}
 }

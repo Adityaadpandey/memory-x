@@ -6,9 +6,9 @@ import (
 )
 
 type Response struct {
-	Status  string `json:"status"`
-	Error   string `json:"error"`
-	Message string `json:"message,omitempty"`
+	Status  string      `json:"status"`
+	Error   interface{} `json:"error",omitempty`
+	Message interface{} `json:"message,omitempty"`
 }
 
 const (
